@@ -9,10 +9,9 @@
   :root { --gap: 12px; --dur: .8s; --ratio: 1.6667; --cardW: 116px; }
   html,body{margin:0;height:100%;background:#0d1014;color:#fff;font-family:system-ui,Segoe UI,Roboto,Arial;}
   .wrap{max-width:920px;margin:0 auto;padding:14px 14px 70px;display:flex;flex-direction:column;gap:14px;}
-  header{padding:10px 14px 0;color:#c7c9d1;font-size:12px;opacity:.9}
   .rows{display:flex;flex-direction:column;gap:14px;align-items:center}
   .row{display:flex;gap:var(--gap);justify-content:center;align-items:center;width:100%}
-  /* Убрали разные размеры между рядами — везде один --cardW */
+  /* одинаковый размер карт в обоих рядах */
   .card{position:relative;perspective:900px;-webkit-perspective:900px;width:var(--cardW);height:calc(var(--cardW)*var(--ratio));cursor:pointer;flex:0 0 auto}
   .card .card-inner{
     position:absolute; inset:0; overflow:visible;
@@ -21,12 +20,10 @@
     -webkit-transition: -webkit-transform var(--dur) ease, box-shadow .35s ease;
     box-shadow:0 6px 22px rgba(0,0,0,.45);
     will-change: transform;
-    transform: rotateY(180deg);
-    -webkit-transform: rotateY(180deg);
+    transform: rotateY(180deg); -webkit-transform: rotateY(180deg);
   }
   .card.selected .card-inner{
-    transform: rotateY(0deg);
-    -webkit-transform: rotateY(0deg);
+    transform: rotateY(0deg); -webkit-transform: rotateY(0deg);
     box-shadow:0 0 22px rgba(230,200,145,.55),0 10px 22px rgba(0,0,0,.55);
   }
   .card.locked{pointer-events:none}
@@ -50,8 +47,12 @@
     transform-origin: top left; -webkit-transform-origin: top left;
   }
 
-  .contbar{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:50;display:none}
-  .contbar.show{display:block;animation:rise .25s ease both}
+  /* Кнопка «Продолжить» — появляется прямо под центрированными картами */
+  .contbar{
+    position:fixed; z-index:50; display:none;
+    left:50%; transform:translateX(-50%);
+  }
+  .contbar.show{ display:block; animation:rise .25s ease both }
   @keyframes rise{from{transform:translate(-50%,6px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
   .btn{background:#1f2937;color:#fff;border:1px solid #334155;border-radius:12px;padding:12px 18px;font-size:16px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.35)}
   .btn:disabled{opacity:.6;cursor:not-allowed}
@@ -59,21 +60,20 @@
 </head>
 <body>
 <div class="wrap">
-  <header>Выберите 3 карты (3 сверху и 4 снизу). Размер карт в обоих рядах одинаковый, подстраивается под экран.</header>
   <div class="rows">
     <div class="row top" id="rowTop"></div>
     <div class="row bottom" id="rowBottom"></div>
   </div>
 </div>
 
-<div class="contbar" id="contbar"><button class="btn" id="btnDone" disabled>Готово</button></div>
+<div class="contbar" id="contbar"><button class="btn" id="btnDone" disabled>Продолжить</button></div>
 
 <script>
 (function(){
   const tg = (window.Telegram && Telegram.WebApp) ? Telegram.WebApp : null;
   if (tg){ tg.ready(); tg.expand(); }
 
-  const V = 'v15'; // кэш-бастер
+  const V = 'v16'; // кэш-бастер
   const z2 = n => String(n).padStart(2,'0');
   const faceUrl = id => `faces/${z2(id)}.png?${V}`;
   const backUrl = `faces/back.png?${V}`;
@@ -111,10 +111,10 @@
   function setCardW(){
     const vw = Math.min(window.innerWidth, document.documentElement.clientWidth);
     const vh = Math.min(window.innerHeight, document.documentElement.clientHeight);
-    const sidePad = 28;             // padding .wrap по горизонтали
+    const sidePad = 28;
     const gaps = 3 * parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap')) || 36;
-    const maxByWidth = Math.floor((vw - sidePad - gaps) / 4); // чтобы 4 внизу влезли
-    const headerH = 70, bottomPad = 100, rows = 2;
+    const maxByWidth = Math.floor((vw - sidePad - gaps) / 4);
+    const headerH = 24, bottomPad = 100, rows = 2;
     const maxByHeight = Math.floor((vh - headerH - bottomPad - gaps) / (rows * 1.6667));
     const cardW = Math.max(80, Math.min(150, maxByWidth, maxByHeight));
     document.documentElement.style.setProperty('--cardW', cardW + 'px');
@@ -184,8 +184,10 @@
     const startX  = Math.round((vw - totalW)/2);
     const y       = Math.round((vh - targetH)/2);
 
+    // Позиционируем кнопку прямо под тройкой
+    const contTop = y + targetH + 12;
+    contbar.style.top = contTop + 'px';
     contbar.style.left = '50%';
-    contbar.style.bottom = '18px';
 
     chosen.forEach((el, i) => {
       const r = rects[i];
