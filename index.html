@@ -11,7 +11,6 @@
   .wrap{max-width:920px;margin:0 auto;padding:14px 14px 70px;display:flex;flex-direction:column;gap:14px;}
   .rows{display:flex;flex-direction:column;gap:14px;align-items:center}
   .row{display:flex;gap:var(--gap);justify-content:center;align-items:center;width:100%}
-  /* одинаковый размер карт в обоих рядах */
   .card{position:relative;perspective:900px;-webkit-perspective:900px;width:var(--cardW);height:calc(var(--cardW)*var(--ratio));cursor:pointer;flex:0 0 auto}
   .card .card-inner{
     position:absolute; inset:0; overflow:visible;
@@ -27,35 +26,20 @@
     box-shadow:0 0 22px rgba(230,200,145,.55),0 10px 22px rgba(0,0,0,.55);
   }
   .card.locked{pointer-events:none}
-
-  .side{
-    position:absolute; inset:0;
-    backface-visibility:hidden; -webkit-backface-visibility:hidden;
-    transform-style:preserve-3d; -webkit-transform-style:preserve-3d;
-    will-change: transform;
-    border:none; border-radius:0; background:transparent;
-    display:flex; align-items:center; justify-content:center;
-  }
+  .side{ position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden;
+         transform-style:preserve-3d; -webkit-transform-style:preserve-3d; display:flex; align-items:center; justify-content:center; }
   .side img{ width:100%; height:100%; object-fit:contain; display:block; }
   .side.face{ transform: rotateY(0deg) translateZ(0.1px); -webkit-transform: rotateY(0deg) translateZ(0.1px); }
   .side.back{ transform: rotateY(180deg) translateZ(0.1px); -webkit-transform: rotateY(180deg) translateZ(0.1px); }
-
   .fade-out{opacity:0;transition:opacity .3s ease}
-  .floating{
-    position:fixed !important; z-index:40; margin:0 !important;
-    transition: transform 1.5s ease-in-out !important; will-change:transform,left,top;
-    transform-origin: top left; -webkit-transform-origin: top left;
-  }
-
-  /* Кнопка «Продолжить» — появляется прямо под центрированными картами */
-  .contbar{
-    position:fixed; z-index:50; display:none;
-    left:50%; transform:translateX(-50%);
-  }
+  .floating{ position:fixed !important; z-index:40; margin:0 !important; transition: transform 1.5s ease-in-out !important; will-change:transform,left,top; transform-origin: top left; -webkit-transform-origin: top left; }
+  .contbar{ position:fixed; z-index:50; display:none; left:50%; transform:translateX(-50%); }
   .contbar.show{ display:block; animation:rise .25s ease both }
   @keyframes rise{from{transform:translate(-50%,6px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
   .btn{background:#1f2937;color:#fff;border:1px solid #334155;border-radius:12px;padding:12px 18px;font-size:16px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.35)}
   .btn:disabled{opacity:.6;cursor:not-allowed}
+  .banner{position:fixed;left:50%;top:10px;transform:translateX(-50%);background:#b91c1c;color:#fff;padding:8px 12px;border-radius:10px;font-size:13px;display:none}
+  .banner.show{display:block}
 </style>
 </head>
 <body>
@@ -67,27 +51,25 @@
 </div>
 
 <div class="contbar" id="contbar"><button class="btn" id="btnDone" disabled>Продолжить</button></div>
+<div id="warn" class="banner">Откройте эту страницу из бота по кнопке — иначе данные не отправятся.</div>
 
 <script>
 (function(){
   const tg = (window.Telegram && Telegram.WebApp) ? Telegram.WebApp : null;
-  if (tg){ tg.ready(); tg.expand(); }
+  if (tg){ tg.ready(); tg.expand(); try{ tg.setHeaderColor("secondary_bg_color"); }catch(e){} }
+  else { document.getElementById('warn').classList.add('show'); }
 
-  const V = 'v17'; // кэш-бастер
+  const V = 'v18'; // кэш-бастер
   const z2 = n => String(n).padStart(2,'0');
   const faceUrl = id => `faces/${z2(id)}.png?${V}`;
   const backUrl = `faces/back.png?${V}`;
 
-  // ==== ИМЕНА КАРТ 00..77 ====
-  const MAJORS = [
-    "Шут","Маг","Верховная Жрица","Императрица","Император","Иерофант","Влюблённые",
-    "Колесница","Сила","Отшельник","Колесо Фортуны","Справедливость","Повешенный",
-    "Смерть","Умеренность","Дьявол","Башня","Звезда","Луна","Солнце","Суд","Мир"
-  ];
+  // Имена карт
+  const MAJORS = ["Шут","Маг","Верховная Жрица","Императрица","Император","Иерофант","Влюблённые","Колесница","Сила","Отшельник","Колесо Фортуны","Справедливость","Повешенный","Смерть","Умеренность","Дьявол","Башня","Звезда","Луна","Солнце","Суд","Мир"];
   const RANKS = ["Туз","Двойка","Тройка","Четвёрка","Пятёрка","Шестёрка","Семёрка","Восьмёрка","Девятка","Десятка","Паж","Рыцарь","Королева","Король"];
-  const SUITS_ORDER = ["Жезлов","Кубков","Мечей","Пентаклей"]; // при иной нумерации поменяй порядок
+  const SUITS_ORDER = ["Жезлов","Кубков","Мечей","Пентаклей"];
   const MINORS = SUITS_ORDER.flatMap(suit => RANKS.map(r => `${r} ${suit}`));
-  const CARD_NAMES = [...MAJORS, ...MINORS]; // длина 78
+  const CARD_NAMES = [...MAJORS, ...MINORS];
   const nameById = (id) => CARD_NAMES[id] ?? `Карта ${id}`;
 
   const rowTop = document.getElementById('rowTop');
@@ -95,13 +77,11 @@
   const contbar = document.getElementById('contbar');
   const btnDone = document.getElementById('btnDone');
 
-  const LIMIT = 3;
   const ALL = Array.from({length:78}, (_,i)=>i);
   shuffle(ALL);
   const seed = ALL.slice(0,7);
   const topIds = seed.slice(0,3);
   const bottomIds = seed.slice(3,7);
-
   let selected = [];
 
   preload([backUrl, ...seed.map(faceUrl)]).then(build);
@@ -109,13 +89,19 @@
   btnDone.addEventListener('click', () => {
     if (selected.length !== 3) return;
     const names = selected.map(id => nameById(id));
-    const payload = {
-      type: 'three_cards',
-      cards: selected,
-      names: names.join(', ')
-    };
-    if (tg){ tg.sendData(JSON.stringify(payload)); tg.close(); }
-    else { alert(JSON.stringify(payload)); }
+    const payload = { type:'three_cards', cards:selected, names:names.join(', ') };
+    console.log("sendData payload:", payload);
+    if (tg && tg.sendData){
+      try{
+        tg.sendData(JSON.stringify(payload));
+        setTimeout(()=>{ try{ tg.close(); }catch(e){} }, 150); // подождать 150ms, чтобы точно ушло
+      }catch(e){
+        console.error("sendData error:", e);
+        alert("Ошибка отправки в бота. Откройте страницу через кнопку в боте и попробуйте ещё раз.");
+      }
+    }else{
+      alert("Эту страницу нужно открыть внутри Telegram по кнопке бота, иначе данные не отправятся.\n\n" + JSON.stringify(payload));
+    }
   });
 
   function build(){
@@ -141,22 +127,15 @@
   function makeCard(id){
     const card = document.createElement('div');
     card.className = 'card'; card.dataset.id = String(id);
+    const inner = document.createElement('div'); inner.className = 'card-inner';
 
-    const inner = document.createElement('div');
-    inner.className = 'card-inner';
+    const back = document.createElement('div'); back.className = 'side back';
+    const backImg = document.createElement('img'); backImg.src = backUrl; backImg.alt = 'back'; back.appendChild(backImg);
 
-    const back = document.createElement('div');
-    back.className = 'side back';
-    const backImg = document.createElement('img'); backImg.src = backUrl; backImg.alt = 'back';
-    back.appendChild(backImg);
+    const face = document.createElement('div'); face.className = 'side face';
+    const faceImg = document.createElement('img'); faceImg.src = faceUrl(id); faceImg.alt = `card-${z2(id)}`; face.appendChild(faceImg);
 
-    const face = document.createElement('div');
-    face.className = 'side face';
-    const faceImg = document.createElement('img'); faceImg.src = faceUrl(id); faceImg.alt = `card-${z2(id)}`;
-    face.appendChild(faceImg);
-
-    inner.append(back, face);
-    card.appendChild(inner);
+    inner.append(back, face); card.appendChild(inner);
     card.addEventListener('click', () => onPick(card, id));
     return card;
   }
@@ -164,7 +143,6 @@
   function onPick(card, id){
     if (selected.length >= 3) return;
     if (card.classList.contains('locked')) return;
-
     card.classList.add('selected','locked');
     selected.push(id);
 
@@ -202,7 +180,7 @@
     const startX  = Math.round((vw - totalW)/2);
     const y       = Math.round((vh - targetH)/2);
 
-    // Позиционируем кнопку прямо под тройкой
+    // Кнопка прямо под тройкой
     const contTop = y + targetH + 12;
     contbar.style.top = contTop + 'px';
     contbar.style.left = '50%';
