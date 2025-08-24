@@ -73,10 +73,22 @@
   const tg = (window.Telegram && Telegram.WebApp) ? Telegram.WebApp : null;
   if (tg){ tg.ready(); tg.expand(); }
 
-  const V = 'v16'; // кэш-бастер
+  const V = 'v17'; // кэш-бастер
   const z2 = n => String(n).padStart(2,'0');
   const faceUrl = id => `faces/${z2(id)}.png?${V}`;
   const backUrl = `faces/back.png?${V}`;
+
+  // ==== ИМЕНА КАРТ 00..77 ====
+  const MAJORS = [
+    "Шут","Маг","Верховная Жрица","Императрица","Император","Иерофант","Влюблённые",
+    "Колесница","Сила","Отшельник","Колесо Фортуны","Справедливость","Повешенный",
+    "Смерть","Умеренность","Дьявол","Башня","Звезда","Луна","Солнце","Суд","Мир"
+  ];
+  const RANKS = ["Туз","Двойка","Тройка","Четвёрка","Пятёрка","Шестёрка","Семёрка","Восьмёрка","Девятка","Десятка","Паж","Рыцарь","Королева","Король"];
+  const SUITS_ORDER = ["Жезлов","Кубков","Мечей","Пентаклей"]; // при иной нумерации поменяй порядок
+  const MINORS = SUITS_ORDER.flatMap(suit => RANKS.map(r => `${r} ${suit}`));
+  const CARD_NAMES = [...MAJORS, ...MINORS]; // длина 78
+  const nameById = (id) => CARD_NAMES[id] ?? `Карта ${id}`;
 
   const rowTop = document.getElementById('rowTop');
   const rowBottom = document.getElementById('rowBottom');
@@ -96,8 +108,14 @@
 
   btnDone.addEventListener('click', () => {
     if (selected.length !== 3) return;
-    const payload = JSON.stringify({type:'three_cards', cards:selected});
-    if (tg) tg.sendData(payload); else alert(payload);
+    const names = selected.map(id => nameById(id));
+    const payload = {
+      type: 'three_cards',
+      cards: selected,
+      names: names.join(', ')
+    };
+    if (tg){ tg.sendData(JSON.stringify(payload)); tg.close(); }
+    else { alert(JSON.stringify(payload)); }
   });
 
   function build(){
