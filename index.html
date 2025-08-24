@@ -12,22 +12,10 @@
   .rows{display:flex;flex-direction:column;gap:14px;align-items:center}
   .row{display:flex;gap:var(--gap);justify-content:center;align-items:center;width:100%}
   .card{position:relative;perspective:900px;-webkit-perspective:900px;width:var(--cardW);height:calc(var(--cardW)*var(--ratio));cursor:pointer;flex:0 0 auto}
-  .card .card-inner{
-    position:absolute; inset:0; overflow:visible;
-    transform-style:preserve-3d; -webkit-transform-style:preserve-3d;
-    transition: transform var(--dur) ease, box-shadow .35s ease;
-    -webkit-transition: -webkit-transform var(--dur) ease, box-shadow .35s ease;
-    box-shadow:0 6px 22px rgba(0,0,0,.45);
-    will-change: transform;
-    transform: rotateY(180deg); -webkit-transform: rotateY(180deg);
-  }
-  .card.selected .card-inner{
-    transform: rotateY(0deg); -webkit-transform: rotateY(0deg);
-    box-shadow:0 0 22px rgba(230,200,145,.55),0 10px 22px rgba(0,0,0,.55);
-  }
+  .card .card-inner{position:absolute; inset:0; overflow:visible; transform-style:preserve-3d; -webkit-transform-style:preserve-3d; transition: transform var(--dur) ease, box-shadow .35s ease; -webkit-transition: -webkit-transform var(--dur) ease, box-shadow .35s ease; box-shadow:0 6px 22px rgba(0,0,0,.45); will-change: transform; transform: rotateY(180deg); -webkit-transform: rotateY(180deg);}
+  .card.selected .card-inner{transform: rotateY(0deg); -webkit-transform: rotateY(0deg); box-shadow:0 0 22px rgba(230,200,145,.55),0 10px 22px rgba(0,0,0,.55);}
   .card.locked{pointer-events:none}
-  .side{ position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden;
-         transform-style:preserve-3d; -webkit-transform-style:preserve-3d; display:flex; align-items:center; justify-content:center; }
+  .side{ position:absolute; inset:0; backface-visibility:hidden; -webkit-backface-visibility:hidden; transform-style:preserve-3d; -webkit-transform-style:preserve-3d; display:flex; align-items:center; justify-content:center; }
   .side img{ width:100%; height:100%; object-fit:contain; display:block; }
   .side.face{ transform: rotateY(0deg) translateZ(0.1px); -webkit-transform: rotateY(0deg) translateZ(0.1px); }
   .side.back{ transform: rotateY(180deg) translateZ(0.1px); -webkit-transform: rotateY(180deg) translateZ(0.1px); }
@@ -56,15 +44,17 @@
 <script>
 (function(){
   const tg = (window.Telegram && Telegram.WebApp) ? Telegram.WebApp : null;
-  if (tg){ tg.ready(); tg.expand(); try{ tg.setHeaderColor("secondary_bg_color"); }catch(e){} }
-  else { document.getElementById('warn').classList.add('show'); }
+  if (tg){
+    try{ tg.ready(); tg.expand(); tg.setHeaderColor("secondary_bg_color"); }catch(e){}
+  } else {
+    document.getElementById('warn').classList.add('show');
+  }
 
-  const V = 'v18'; // кэш-бастер
+  const V = 'v19';
   const z2 = n => String(n).padStart(2,'0');
   const faceUrl = id => `faces/${z2(id)}.png?${V}`;
   const backUrl = `faces/back.png?${V}`;
 
-  // Имена карт
   const MAJORS = ["Шут","Маг","Верховная Жрица","Императрица","Император","Иерофант","Влюблённые","Колесница","Сила","Отшельник","Колесо Фортуны","Справедливость","Повешенный","Смерть","Умеренность","Дьявол","Башня","Звезда","Луна","Солнце","Суд","Мир"];
   const RANKS = ["Туз","Двойка","Тройка","Четвёрка","Пятёрка","Шестёрка","Семёрка","Восьмёрка","Девятка","Десятка","Паж","Рыцарь","Королева","Король"];
   const SUITS_ORDER = ["Жезлов","Кубков","Мечей","Пентаклей"];
@@ -90,17 +80,18 @@
     if (selected.length !== 3) return;
     const names = selected.map(id => nameById(id));
     const payload = { type:'three_cards', cards:selected, names:names.join(', ') };
-    console.log("sendData payload:", payload);
-    if (tg && tg.sendData){
+    console.log("[webapp] sendData:", payload);
+    if (tg && typeof tg.sendData === "function"){
       try{
         tg.sendData(JSON.stringify(payload));
-        setTimeout(()=>{ try{ tg.close(); }catch(e){} }, 150); // подождать 150ms, чтобы точно ушло
+        // подстрахуемся от раннего закрытия на iOS/Android
+        setTimeout(()=>{ try{ tg.close(); }catch(e){} }, 400);
       }catch(e){
-        console.error("sendData error:", e);
+        console.error("[webapp] sendData error:", e);
         alert("Ошибка отправки в бота. Откройте страницу через кнопку в боте и попробуйте ещё раз.");
       }
     }else{
-      alert("Эту страницу нужно открыть внутри Telegram по кнопке бота, иначе данные не отправятся.\n\n" + JSON.stringify(payload));
+      alert("Эту страницу нужно открыть внутри Telegram по кнопке бота.\n\n" + JSON.stringify(payload));
     }
   });
 
@@ -180,7 +171,6 @@
     const startX  = Math.round((vw - totalW)/2);
     const y       = Math.round((vh - targetH)/2);
 
-    // Кнопка прямо под тройкой
     const contTop = y + targetH + 12;
     contbar.style.top = contTop + 'px';
     contbar.style.left = '50%';
